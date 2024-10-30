@@ -35,7 +35,7 @@ export const CheckOperation = <TResult,>({
 }: {
   label: string;
   operation: () => Promise<TResult>;
-  operationAssertion: (result: TResult) => boolean;
+  operationAssertion: (result: TResult) => Promise<boolean> | boolean;
   messages: { success: string; error: string };
   onDone: () => void;
   retries?: number;
@@ -45,10 +45,10 @@ export const CheckOperation = <TResult,>({
 
   const [result, setResult] = useState<Result | null>(null);
   useEffect(() => {
-    const checkDbConnection = async () => {
+    const action = async () => {
       try {
         const result = await retry(operation, retries, delay);
-        operationAssertion(result)
+        await operationAssertion(result)
           ? setResult({ state: 'success' })
           : setResult({
               state: 'error',
@@ -60,7 +60,7 @@ export const CheckOperation = <TResult,>({
         onDone();
       }
     };
-    checkDbConnection();
+    action();
   }, []);
 
   if (!result) {

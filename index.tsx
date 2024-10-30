@@ -4,6 +4,25 @@ import { execSync } from 'node:child_process';
 import { SpawnProcess } from './components/Subprocess.js';
 import { PrismaClient } from '@prisma/client';
 import { CheckOperation } from './components/CheckOperation.js';
+import Fastify from 'fastify';
+
+const WEB_SERVER_PORT = process.env.WEB_SERVER_PORT;
+
+const fastify = Fastify({
+  logger: false,
+});
+
+fastify.get('/', async function handler () {
+  return { status: 'ok' }
+})
+
+fastify.listen({
+  port: WEB_SERVER_PORT,
+}, (err, address) => {
+  if (err) {
+    console.error(err);
+  }
+});
 
 const prisma = new PrismaClient();
 
@@ -78,7 +97,7 @@ const Cli = () => {
       label='Database connection'
       operation={() => prisma.$queryRaw`SELECT 1`}
       // We need to wait for the database to be ready
-      retries={50}
+      retries={150}
       delay={100}
       operationAssertion={() => true}
       messages={{
@@ -97,6 +116,19 @@ const Cli = () => {
         error: 'Cannot fetch data from the database',
       }}
       onDone={nextStep}
+    />,
+    <CheckOperation
+      label='Web server connection'
+      operation={() => fetch(`http://localhost:${WEB_SERVER_PORT}/`, { signal: AbortSignal.timeout(1000) })}
+      operationAssertion={async (result) => (await result.json()).status === 'ok'}
+      messages={{
+        success: 'Web server is running and responding',
+        error: 'Web server is not running or not responding',
+      }}
+      onDone={() => {
+        fastify.close();
+        nextStep();
+      }}
     />,
     <SpawnProcess
       command='docker'
@@ -132,6 +164,11 @@ const Cli = () => {
   );
 };
 
-render(<Cli />, {
+const { waitUntilExit } = render(<Cli />, {
   exitOnCtrlC: true,
+});
+
+waitUntilExit().then(() => {
+  // double check if the server is closed
+  fastify.close();
 });

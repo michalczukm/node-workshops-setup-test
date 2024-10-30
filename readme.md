@@ -48,3 +48,4 @@ You should see output similar to the one below (with info about `node.js` setup 
 > This verification is pretty verbose, please take a look at the errors, they should give you a hint what's wrong.
 >
 > The DB container maps to `5123` port - check if it's available, or change the port in `.env` file.
+> The Web server runs at port `3123` - check if it's available, or change the port in `.env` file.
